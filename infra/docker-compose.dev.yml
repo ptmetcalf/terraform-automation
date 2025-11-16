@@ -1,0 +1,18 @@
+services:
+  orchestrator:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+    image: terraform-agentic-orchestrator:dev
+    environment:
+      OSS_MODEL_ENDPOINT: ${OSS_MODEL_ENDPOINT}
+      OSS_MODEL_API_KEY: ${OSS_MODEL_API_KEY}
+      CODEX_API_KEY: ${CODEX_API_KEY}
+      AGENT_FRAMEWORK_DEVUI_ENABLED: ${AGENT_FRAMEWORK_DEVUI_ENABLED:-true}
+      TF_CLI_PATH: ${TF_CLI_PATH:-terraform}
+      DATABASE_URL: ${DATABASE_URL:-sqlite+aiosqlite:///./agent.db}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ..:/app:z
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
