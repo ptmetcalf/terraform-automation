@@ -5,6 +5,7 @@ from .checkov_tool import SecurityScanRequest, run_security_scan
 from .cost_tool import CostEstimateRequest, estimate_cost
 from .gitops_tool import apply_git_changes, get_repo_status
 from .mcp_clients import get_ms_learn_mcp_tools, get_terraform_mcp_tools
+from .terraform_rules_tool import get_terraform_standards
 from .terraform_cli_tool import (
     ApplyRequest,
     ApplyResult,
@@ -27,6 +28,7 @@ __all__ = [
     "get_terraform_mcp_tools",
     "apply_git_changes",
     "get_repo_status",
+    "get_terraform_standards",
     "PlanRequest",
     "run_terraform_plan",
     "ApplyRequest",

@@ -45,6 +45,7 @@ Environment variables are loaded via `app/config.py` using `pydantic-settings`. 
 | `DATABASE_URL` | SQLAlchemy/Databases connection string (defaults to SQLite). |
 | `TERRAFORM_MCP_COMMAND`, `TERRAFORM_MCP_ARGS` | Launch Terraform MCP server via stdio. |
 | `MSLEARN_MCP_URL`, `MSLEARN_MCP_KEY` | Microsoft Learn MCP streamable HTTP endpoint. |
+| `TOOLS_INSTALL_DIR`, `TOOLS_AUTO_INSTALL` | Control where pinned CLI tools (Terraform, Checkov, tfsec, Infracost) are installed and whether auto-install runs on startup. |
 
 Create a `.env` file with these variables when running locally.
 
@@ -78,6 +79,10 @@ Create a `.env` file with these variables when running locally.
 
 6. If `AGENT_FRAMEWORK_DEVUI_ENABLED=true` and the Dev UI extra is installed, open `http://localhost:8000/devui` for the debugging UI.
 
+### Tool installation
+
+On startup the app downloads pinned versions of Terraform (1.9.5), Checkov (3.2.332), tfsec (1.28.3), and Infracost (0.10.42) into `TOOLS_INSTALL_DIR` (default `.tools/bin`). The directory is added to `PATH`, so you can rely on those binaries both locally and inside containers without baking them into the base image. Set `TOOLS_AUTO_INSTALL=false` or pre-populate the directory to skip downloads.
+
 ### Docker / Podman
 
 ```bash
@@ -110,6 +115,7 @@ Each agent is a `ChatAgent` with dedicated instructions and structured output mo
 - `tools/terraform_cli_tool.py`: Pydantic requests + wrappers around `terraform init/plan/show/apply` plus drift detection.
 - `tools/checkov_tool.py`, `tools/cost_tool.py`, `tools/gitops_tool.py`, and `tools/azure_naming_tool.py` expose structured functions for agents to call.
 - `tools/mcp_clients.py` provisions Terraform + Microsoft Learn MCP tool instances.
+- `tools/terraform_rules_tool.py` exposes the living Terraform module standards (`docs/terraform-standards.md`) so agents consistently reuse and maintain modules.
 
 ## Testing
 

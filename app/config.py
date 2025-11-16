@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     # Misc env
     database_url: str = Field(default="sqlite+aiosqlite:///./agent.db", alias="DATABASE_URL")
     environment: str = Field(default="dev", alias="ENVIRONMENT")
+    tools_install_dir: str = Field(default=".tools/bin", alias="TOOLS_INSTALL_DIR")
+    tools_auto_install: bool = Field(default=True, alias="TOOLS_AUTO_INSTALL")
 
 
 @lru_cache()

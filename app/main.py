@@ -1,6 +1,7 @@
 """FastAPI entrypoint wiring the Agent Framework workflow and Dev UI."""
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any, List
 
@@ -12,6 +13,7 @@ from app.api.routes_admin import router as tickets_router
 from app.api.routes_chat import router as chat_router
 from app.config import settings
 from app.services.database import init_database, shutdown_database
+from app.services.tool_installer import ensure_tool_binaries
 from app.workflows.terraform_workflow import workflow
 
 logger = logging.getLogger(__name__)
@@ -81,6 +83,8 @@ def _register_agui(app: FastAPI) -> None:
 
 @app.on_event("startup")
 async def on_startup() -> None:
+    if settings.tools_auto_install:
+        await asyncio.to_thread(ensure_tool_binaries)
     await init_database()
     _register_devui(app)
     _register_agui(app)
