@@ -8,7 +8,8 @@ from app.tools import run_terraform_plan
 INSTRUCTIONS = """
 You handle terraform init/plan flows. Acquire workspace locks via the lock service
 before running the plan tool. Summarize the resulting plan and provide the lock ID.
-Always call the run_terraform_plan tool with accurate parameters. Output PlanResponse JSON.
+Always call the run_terraform_plan tool with accurate parameters and include the returned
+PlanArtifact in the PlanResponse under plan_artifact.
 """
 
 _TOOLS = [run_terraform_plan]

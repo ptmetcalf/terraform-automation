@@ -9,6 +9,15 @@ from uuid import uuid4
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, HttpUrl
 
+from app.constants import (
+    APPLY_APPROVAL_COMMANDS,
+    APPLY_AUTHORIZED_FLAG,
+    APPLY_RESET_COMMANDS,
+    PLAN_APPROVAL_COMMANDS,
+    PLAN_APPROVED_FLAG,
+    PLAN_RESET_COMMANDS,
+    SUPERVISOR_GUARDRAIL_HELP,
+)
 from app.models import Constraints, DeploymentTicket, GitReference
 from app.services.ticket_store import ticket_store
 from app.workflows.terraform_workflow import workflow
@@ -34,6 +43,50 @@ class ChatResponse(BaseModel):
     thread_id: str
     status: str
     workflow_outputs: list[Any]
+
+
+def _normalize(text: str) -> str:
+    return text.lower()
+
+
+def _matches_command(text: str, commands: tuple[str, ...]) -> bool:
+    lowered = _normalize(text)
+    return any(cmd in lowered for cmd in commands)
+
+
+def apply_supervisor_flags(ticket: DeploymentTicket, message: str) -> bool:
+    """Adjust ticket flags based on explicit slash commands from the operator."""
+
+    updated = False
+    if not message:
+        return False
+
+    if _matches_command(message, PLAN_APPROVAL_COMMANDS) and not ticket.flags.get(PLAN_APPROVED_FLAG):
+        ticket.flags[PLAN_APPROVED_FLAG] = True
+        updated = True
+    if _matches_command(message, PLAN_RESET_COMMANDS) and ticket.flags.get(PLAN_APPROVED_FLAG):
+        ticket.flags[PLAN_APPROVED_FLAG] = False
+        updated = True
+
+    if _matches_command(message, APPLY_APPROVAL_COMMANDS) and not ticket.flags.get(APPLY_AUTHORIZED_FLAG):
+        ticket.flags[APPLY_AUTHORIZED_FLAG] = True
+        updated = True
+    if _matches_command(message, APPLY_RESET_COMMANDS) and ticket.flags.get(APPLY_AUTHORIZED_FLAG):
+        ticket.flags[APPLY_AUTHORIZED_FLAG] = False
+        updated = True
+
+    return updated
+
+
+def _guardrail_summary(ticket: DeploymentTicket) -> str:
+    plan_unlocked = ticket.flags.get(PLAN_APPROVED_FLAG, False)
+    apply_unlocked = ticket.flags.get(APPLY_AUTHORIZED_FLAG, False)
+    return (
+        "[Supervisor Guardrails]\n"
+        f"- coding unlocked ({PLAN_APPROVED_FLAG}): {'true' if plan_unlocked else 'false'}\n"
+        f"- apply authorized ({APPLY_AUTHORIZED_FLAG}): {'true' if apply_unlocked else 'false'}\n"
+        f"- Commands: {SUPERVISOR_GUARDRAIL_HELP}"
+    )
 
 
 async def _ensure_ticket(payload: ChatRequest) -> DeploymentTicket:
@@ -68,9 +121,12 @@ async def _ensure_ticket(payload: ChatRequest) -> DeploymentTicket:
 @router.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(payload: ChatRequest) -> ChatResponse:
     ticket = await _ensure_ticket(payload)
+    apply_supervisor_flags(ticket, payload.message)
+    guardrails = _guardrail_summary(ticket)
     augmented_message = (
         f"Ticket {ticket.ticket_id} ({ticket.environment}) request from {ticket.requested_by}:\n"
-        f"{payload.message}"
+        f"{guardrails}\n"
+        f"Operator message:\n{payload.message}"
     )
 
     async with _workflow_lock:

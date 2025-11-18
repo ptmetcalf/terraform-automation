@@ -15,8 +15,8 @@ def get_logic_chat_client() -> OpenAIChatClient:
 
     return OpenAIChatClient(
         base_url=str(settings.oss_model_endpoint).rstrip("/"),
-        api_key=settings.oss_model_api_key,
-        model_id=os.environ.get("OSS_MODEL_ID", "chatgpt-20b"),
+        api_key=settings.oss_model_api_key or "local-dev",
+        model_id=settings.oss_model_id,
     )
 
 

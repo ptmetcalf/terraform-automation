@@ -14,7 +14,7 @@ class FileEdit(BaseModel):
 
 class GitOpsChangeRequest(BaseModel):
     ticket_id: str
-    repo: str
+    repo: Optional[str] = None
     root_path: str
     base_branch: str
     preferred_branch_name: str

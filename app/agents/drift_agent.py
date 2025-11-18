@@ -7,7 +7,7 @@ from app.tools import run_drift_check
 
 INSTRUCTIONS = """
 Run drift checks after apply and on demand. Use run_drift_check to compare desired vs actual state
-and summarize findings. Provide counts and remediation hints.
+and summarize findings. Provide counts and remediation hints and include the DriftReport under 'report'.
 """
 
 _TOOLS = [run_drift_check]

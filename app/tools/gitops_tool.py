@@ -9,6 +9,7 @@ from git import Repo
 from pydantic import Field
 
 from app.models import GitOpsChangeRequest, GitOpsResult
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,7 @@ def apply_git_changes(
 ) -> GitOpsResult:
     """Apply file edits inside a repository and open a branch."""
 
-    repo_path = Path(request.repo)
+    repo_path = Path(request.repo or settings.gitops_repo_path)
     if not repo_path.exists():
         raise GitOpsError(f"Repo path {repo_path} is missing")
 
@@ -81,3 +82,9 @@ def get_repo_status(repo_path: Annotated[str, Field(description="Path to clone d
         "dirty": repo.is_dirty(untracked_files=True),
         "head": repo.head.commit.hexsha if repo.head.is_valid() else None,
     }
+
+
+def get_gitops_repo_path() -> str:
+    """Return configured GitOps repository path."""
+
+    return settings.gitops_repo_path

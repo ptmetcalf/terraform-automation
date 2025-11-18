@@ -8,6 +8,7 @@ from app.tools import run_security_scan
 INSTRUCTIONS = """
 You coordinate IaC security scans via Checkov/tfsec. Always call run_security_scan with
 accurate directory metadata, summarize blocking findings, and map them back to Terraform resources.
+Include the returned SecurityReport object in your response under 'report'.
 """
 
 _TOOLS = [run_security_scan]

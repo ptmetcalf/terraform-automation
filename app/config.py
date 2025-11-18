@@ -15,7 +15,8 @@ class Settings(BaseSettings):
 
     # Model endpoints
     oss_model_endpoint: AnyHttpUrl = Field(..., alias="OSS_MODEL_ENDPOINT")
-    oss_model_api_key: str = Field(..., alias="OSS_MODEL_API_KEY")
+    oss_model_api_key: Optional[str] = Field(default=None, alias="OSS_MODEL_API_KEY")
+    oss_model_id: str = Field(default="openai/gpt-oss-20b", alias="OSS_MODEL_ID")
     codex_api_key: str = Field(..., validation_alias=AliasChoices("CODEX_API_KEY", "OPENAI_API_KEY"))
 
     # Agent framework
@@ -31,6 +32,7 @@ class Settings(BaseSettings):
     git_provider: str = Field(default="github", alias="GIT_PROVIDER")
     git_token: Optional[str] = Field(default=None, alias="GIT_TOKEN")
     git_username: Optional[str] = Field(default=None, alias="GIT_USERNAME")
+    gitops_repo_path: str = Field(default="./gitops", alias="GITOPS_REPO_PATH")
 
     # Misc env
     database_url: str = Field(default="sqlite+aiosqlite:///./agent.db", alias="DATABASE_URL")

@@ -4,18 +4,21 @@ from __future__ import annotations
 import logging
 import os
 from functools import lru_cache
+from shlex import split
+
 from agent_framework import MCPStdioTool, MCPStreamableHTTPTool
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_TERRAFORM_MCP_COMMAND = "npx"
+DEFAULT_TERRAFORM_MCP_ARGS = "-y terraform-mcp-server".split()
+DEFAULT_MSLEARN_MCP_URL = "https://learn.microsoft.com/api/agentframework/mslearn-mcp"
 
 @lru_cache()
 def get_terraform_mcp_tools() -> list[MCPStdioTool]:
-    command = os.environ.get("TERRAFORM_MCP_COMMAND")
-    if not command:
-        logger.warning("TERRAFORM_MCP_COMMAND not set; Terraform MCP tools disabled")
-        return []
-    args = os.environ.get("TERRAFORM_MCP_ARGS", "").split()
+    command = os.environ.get("TERRAFORM_MCP_COMMAND", DEFAULT_TERRAFORM_MCP_COMMAND)
+    args_raw = os.environ.get("TERRAFORM_MCP_ARGS")
+    args = split(args_raw) if args_raw else DEFAULT_TERRAFORM_MCP_ARGS
     tool = MCPStdioTool(
         name="terraform-mcp",
         command=command,
@@ -27,7 +30,7 @@ def get_terraform_mcp_tools() -> list[MCPStdioTool]:
 
 @lru_cache()
 def get_ms_learn_mcp_tools() -> list[MCPStreamableHTTPTool]:
-    url = os.environ.get("MSLEARN_MCP_URL")
+    url = os.environ.get("MSLEARN_MCP_URL", DEFAULT_MSLEARN_MCP_URL)
     api_key = os.environ.get("MSLEARN_MCP_KEY")
     if not url:
         logger.warning("MSLEARN_MCP_URL not set; Microsoft Learn MCP disabled")

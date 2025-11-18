@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from app.agents.base import build_coding_agent
 from app.agents.schemas import CodingResponse
-from app.tools import get_terraform_standards
+from app.tools import get_gitops_repo_path, get_terraform_standards
 
 INSTRUCTIONS = """
 You are the implementation engineer. Translate design decisions into Terraform and documentation
@@ -17,7 +17,7 @@ def create_agent():
     return build_coding_agent(
         name="CodingAgent",
         instructions=INSTRUCTIONS,
-        tools=[get_terraform_standards],
+        tools=[get_terraform_standards, get_gitops_repo_path],
         response_format=CodingResponse,
     )
 

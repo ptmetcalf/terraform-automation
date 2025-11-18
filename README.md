@@ -31,6 +31,24 @@ terraform-automation/
 └── README.md
 ```
 
+## Project Documentation
+
+- `README.md` – this file, covers onboarding and day-to-day operations.
+- `ARCHITECTURE.md` – system design and workflow overview.
+- `IMPLEMENTATION_PLAN.md` – capability roadmap and execution checklist.
+- `AGENTS.md` – guidelines for working on the repo using agent-based tooling (e.g., Codex CLI).
+
+## Capabilities API
+
+Inspect available coworker capabilities via the REST API:
+
+```
+GET /api/capabilities          # list all capabilities with metadata
+GET /api/capabilities/{slug}   # fetch a single capability definition
+```
+
+The metadata is sourced from `app/capabilities/registry.py` and fuels both the supervisor workflow and future UI surfaces.
+
 ## Configuration
 
 Environment variables are loaded via `app/config.py` using `pydantic-settings`. Key values:
@@ -41,19 +59,23 @@ Environment variables are loaded via `app/config.py` using `pydantic-settings`. 
 | `CODEX_API_KEY` / `OPENAI_API_KEY`, `CODEX_ENDPOINT`, `CODEX_MODEL_ID` | Codex 5.1 coding agent credentials. |
 | `AGENT_FRAMEWORK_DEVUI_ENABLED` | Toggle Dev UI mount at `/devui`. Requires `agent-framework-devui` extra. |
 | `TF_CLI_PATH`, `TF_BACKEND_*` | Terraform CLI binary and backend settings. |
-| `GIT_PROVIDER`, `GIT_USERNAME`, `GIT_TOKEN` | GitOps configuration. |
+| `GIT_PROVIDER`, `GIT_USERNAME`, `GIT_TOKEN`, `GITOPS_REPO_PATH` | GitOps configuration and local path to the repo checkout. |
 | `DATABASE_URL` | SQLAlchemy/Databases connection string (defaults to SQLite). |
 | `TERRAFORM_MCP_COMMAND`, `TERRAFORM_MCP_ARGS` | Launch Terraform MCP server via stdio. |
-| `MSLEARN_MCP_URL`, `MSLEARN_MCP_KEY` | Microsoft Learn MCP streamable HTTP endpoint. |
+| `TERRAFORM_MCP_COMMAND`, `TERRAFORM_MCP_ARGS` | Command/args used to start the Terraform MCP server (default `npx -y terraform-mcp-server`). |
+| `MSLEARN_MCP_URL`, `MSLEARN_MCP_KEY` | Microsoft Learn MCP streamable HTTP endpoint (default public endpoint; key optional). |
 | `TOOLS_INSTALL_DIR`, `TOOLS_AUTO_INSTALL` | Control where pinned CLI tools (Terraform, Checkov, tfsec, Infracost) are installed and whether auto-install runs on startup. |
+| `TERRAFORM_VERSION`, `TERRAFORM_DOWNLOAD_URL`, etc. | Optional overrides for the auto-installer. Provide `<TOOL>_VERSION`/`<TOOL>_DOWNLOAD_URL` for Terraform, Checkov, tfsec, or Infracost to pin to alternative releases or mirrors. |
 
 Create a `.env` file with these variables when running locally.
 
 ## Running Locally
 
-1. Install dependencies (preferably in a virtual environment):
+1. Create and activate a virtual environment, then install dependencies:
 
    ```bash
+   python -m venv .venv
+   source .venv/bin/activate
    pip install -r requirements.txt
    ```
 
@@ -85,6 +107,20 @@ On startup the app downloads pinned versions of Terraform (1.9.5), Checkov (3.2.
 
 ### Docker / Podman
 
+The Dockerfile in `infra/Dockerfile` now bakes in the pinned CLI tools (Terraform, Checkov, tfsec, Infracost) and installs Node.js/npm so the Terraform MCP server can be launched via `npx` with no extra setup.
+
+Build and run locally:
+
+```bash
+docker build -t terraform-orchestrator -f infra/Dockerfile .
+docker run --env-file .env -p 8000:8000 \
+  -v /home/batman/code/homelab-monorepo/terraform/azure:/workspace \
+  -e GITOPS_REPO_PATH=/workspace \
+  terraform-orchestrator
+```
+
+Or use Podman Compose for the dev stack:
+
 ```bash
 podman compose -f infra/docker-compose.dev.yml up --build
 ```
@@ -103,6 +139,17 @@ Each agent is a `ChatAgent` with dedicated instructions and structured output mo
 - **Drift/Documentation**: Post-apply drift detection and documentation artifacts.
 
 `app/workflows/terraform_workflow.py` encodes the workflow graph using `WorkflowBuilder` with conditional routing from the orchestrator to each phase, plus sequential/fan-in edges mirroring the lifecycle described in the requirements.
+
+### Supervisor guardrails
+
+The orchestrator acts as a supervisor that will not advance to coding or apply until you explicitly unlock those stages. Use slash commands in `/api/chat` messages (or via the Dev UI) to flip the guardrails:
+
+- `/approve plan` unlocks the coding phase once you are happy with the proposed design/plan.
+- `/reset plan` (or `/lock coding`) re-locks coding if you want to revisit the plan.
+- `/approve apply` unlocks the apply/approval phases once you are ready to run Terraform.
+- `/hold apply` (or `/reset apply` / `/lock apply`) re-locks apply so changes are never executed without explicit human consent.
+
+The supervisor summarizes the current guardrail state in every prompt so you always see which stages are permitted.
 
 ## Persistence & Services
 

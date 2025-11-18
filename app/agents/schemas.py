@@ -6,7 +6,7 @@ from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field, HttpUrl
 
-from app.models import GitOpsChangeRequest
+from app.models import CostReport, DriftReport, GitOpsChangeRequest, PlanArtifact, SecurityReport
 
 
 class OrchestratorDirective(BaseModel):
@@ -52,6 +52,7 @@ class PlanResponse(BaseModel):
     plan_id: str
     highlights: list[str] = Field(default_factory=list)
     workspace_lock_id: Optional[str]
+    plan_artifact: PlanArtifact
 
 
 class PlanReviewResponse(BaseModel):
@@ -62,12 +63,14 @@ class PlanReviewResponse(BaseModel):
 class SecurityResponse(BaseModel):
     blocking_issues: list[str] = Field(default_factory=list)
     summary: str
+    report: SecurityReport
 
 
 class CostResponse(BaseModel):
     delta_monthly_cost: float
     confidence: Literal["low", "medium", "high"]
     notes: str
+    report: CostReport
 
 
 class ApplyResponse(BaseModel):
@@ -91,6 +94,7 @@ class DriftResponse(BaseModel):
     status: Literal["no_drift", "drift_detected"]
     summary: str
     finding_count: int
+    report: DriftReport
 
 
 class PostApplySummary(BaseModel):
