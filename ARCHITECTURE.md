@@ -5,7 +5,7 @@ This project implements a modular “agent coworker” platform that exposes a c
 ## High-Level Components
 
 1. **Supervisor / Lead Engineer**
-   - Aggregates ticket context, enforces guardrails, and routes work to capability agents via the workflow graph.
+   - Conversational AI Engineer exposed via `/agui/agentic_chat`; summarizes state, gathers requirements, and invokes specialist capabilities via tools (e.g., DevOps/Terraform).
    - Injects guardrail summaries (e.g., plan/apply locks) into every prompt so downstream agents know which actions are permitted.
 
 2. **Capability Agents**
@@ -31,6 +31,7 @@ This project implements a modular “agent coworker” platform that exposes a c
 
 6. **UI & Dev Experience**
    - `app/main.py` mounts the Dev UI (`/devui`) and AG-UI endpoints when packages are installed, enabling interactive debugging and visualization.
+   - The [AG-UI reference frontend](https://github.com/ag-ui-protocol/ag-ui) connects to `/agui/agentic_chat` to render chat streams, approvals, and capability metadata without building a bespoke UI.
    - Future developer-facing UI will consume capability metadata and approval endpoints to present a coworker dashboard.
 
 ## Runtime Flow (Current State)

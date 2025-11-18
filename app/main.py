@@ -43,7 +43,6 @@ app = FastAPI(title="Terraform Agentic Orchestrator", docs_url=None, redoc_url=N
 app.mount("/api", api_app)
 
 devui_app = None
-agui_app = None
 
 def _register_devui(app: FastAPI) -> None:
     global devui_app
@@ -88,26 +87,29 @@ def _register_devui(app: FastAPI) -> None:
 
 
 def _register_agui(app: FastAPI) -> None:
-    global agui_app
+    if not settings.agent_framework_agui_enabled:
+        logger.info("AG-UI disabled via configuration")
+        return
     try:
         from agent_framework.ag_ui import add_agent_framework_fastapi_endpoint
     except ModuleNotFoundError:
         logger.warning("agent-framework-ag-ui package not installed; skipping AG-UI endpoint")
         return
 
-    agui_app = FastAPI(title="AG-UI Gateway")
-    add_agent_framework_fastapi_endpoint(agui_app, agents.orchestrator_agent, path="/")
-    app.mount("/agui", agui_app)
-    logger.info("Mounted AG-UI endpoint at /agui")
+    logger.info("Registering AG-UI endpoint on /agui/agentic_chat")
+    add_agent_framework_fastapi_endpoint(app, agents.supervisor_agent, path="/agui/agentic_chat")
+    logger.info("Registered AG-UI endpoint at /agui/agentic_chat")
+
+_register_agui(app)
 
 
 @app.on_event("startup")
 async def on_startup() -> None:
+    logger.info("Starting application bootstrap")
     if settings.tools_auto_install:
         await asyncio.to_thread(ensure_tool_binaries)
     await init_database()
     _register_devui(app)
-    _register_agui(app)
 
 
 @app.on_event("shutdown")

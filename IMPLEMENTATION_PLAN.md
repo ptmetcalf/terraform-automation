@@ -73,7 +73,7 @@ No pull request is complete until these documents reflect the current behavior.
 ### Phase 2 – Workflow Refactor
 - [ ] Design `CapabilityDirective` / `CapabilityResponse` schemas.
 - [ ] Refactor `app/workflows/terraform_workflow.py` into a capability router (DevOps as first capability).
-- [ ] Align supervisor instructions with the new routing logic.
+- [x] Align supervisor instructions with the new routing logic (AG-UI now talks to the SupervisorAgent which can trigger the DevOps capability via tools).
 
 ### Phase 3 – Approval Service & Guardrails
 - [ ] Implement approval store/service and persistence.

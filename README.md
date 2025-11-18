@@ -49,6 +49,25 @@ GET /api/capabilities/{slug}   # fetch a single capability definition
 
 The metadata is sourced from `app/capabilities/registry.py` and fuels both the supervisor workflow and future UI surfaces.
 
+The SupervisorAgent can invoke capabilities via tools (e.g., the DevOps tool wraps the existing `/api/chat` Terraform workflow), so the same APIs remain available programmatically.
+
+## AG-UI Developer Console
+
+The API exposes an AG-UI-compatible streaming endpoint at `/agui/agentic_chat` (mounted when `agent-framework-ag-ui` is installed and `AGENT_FRAMEWORK_AGUI_ENABLED=true`). It connects directly to the SupervisorAgent (AI Engineer) so you can chat with the coworker while it orchestrates sub-capabilities. Use the [AG-UI reference frontend](https://github.com/ag-ui-protocol/ag-ui) to visualize conversations, approvals, and capability state:
+
+1. Start this API locally: `uvicorn app.main:app --reload`.
+2. Clone and set up AG-UI (requires `pnpm`; install via `corepack enable pnpm` if needed):
+   ```bash
+   git clone https://github.com/ag-ui-protocol/ag-ui
+   cd ag-ui
+   pnpm install
+   ```
+3. Point AG-UI at your `/agui/agentic_chat` endpoint (served directly by FastAPI) and launch the dojo viewer:
+   ```bash
+   AGENT_FRAMEWORK_PYTHON_URL=http://localhost:8000/agui/agentic_chat pnpm turbo run dev --filter=demo-viewer
+   ```
+4. Open `http://localhost:3000` to interact with the coworker UI. The new `/api/capabilities` metadata and approval commands can be surfaced in AG-UI panels for richer context.
+
 ## Configuration
 
 Environment variables are loaded via `app/config.py` using `pydantic-settings`. Key values:
@@ -58,6 +77,7 @@ Environment variables are loaded via `app/config.py` using `pydantic-settings`. 
 | `OSS_MODEL_ENDPOINT`, `OSS_MODEL_API_KEY`, `OSS_MODEL_ID` | OpenAI-compatible endpoint for logic/review agents. |
 | `CODEX_API_KEY` / `OPENAI_API_KEY`, `CODEX_ENDPOINT`, `CODEX_MODEL_ID` | Codex 5.1 coding agent credentials. |
 | `AGENT_FRAMEWORK_DEVUI_ENABLED` | Toggle Dev UI mount at `/devui`. Requires `agent-framework-devui` extra. |
+| `AGENT_FRAMEWORK_AGUI_ENABLED` | Toggle AG-UI streaming endpoint at `/agui/agentic_chat`. Requires `agent-framework-ag-ui` extra. |
 | `TF_CLI_PATH`, `TF_BACKEND_*` | Terraform CLI binary and backend settings. |
 | `GIT_PROVIDER`, `GIT_USERNAME`, `GIT_TOKEN`, `GITOPS_REPO_PATH` | GitOps configuration and local path to the repo checkout. |
 | `DATABASE_URL` | SQLAlchemy/Databases connection string (defaults to SQLite). |
@@ -71,20 +91,24 @@ Create a `.env` file with these variables when running locally.
 
 ## Running Locally
 
-1. Create and activate a virtual environment, then install dependencies:
+Use the `justfile` targets to streamline common workflows:
+
+1. Install dependencies:
 
    ```bash
-   python -m venv .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
+   just setup
    ```
 
-2. Export required environment variables (see table above) and ensure Terraform/Checkov/Infracost binaries are available.
-
-3. Start the API:
+2. Start the FastAPI server with reload:
 
    ```bash
-   uvicorn app.main:app --reload
+   just serve
+   ```
+
+3. Run tests:
+
+   ```bash
+   just test
    ```
 
 4. Send chat requests:
@@ -99,7 +123,7 @@ Create a `.env` file with these variables when running locally.
    http :8000/api/tickets/{ticket_id}
    ```
 
-6. If `AGENT_FRAMEWORK_DEVUI_ENABLED=true` and the Dev UI extra is installed, open `http://localhost:8000/devui` for the debugging UI.
+6. If `AGENT_FRAMEWORK_DEVUI_ENABLED=true` and the Dev UI extra is installed, open `http://localhost:8000/devui` for the debugging UI. To run the AG-UI frontend, use `just agui` (after cloning the AG-UI repo adjacent to this project).
 
 ### Tool installation
 
@@ -131,7 +155,8 @@ The compose stack mounts the repository for iterative development.
 
 Each agent is a `ChatAgent` with dedicated instructions and structured output models defined in `app/agents/schemas.py`. Highlights:
 
-- **OrchestratorAgent**: Maintains `DeploymentTicket` state, routes phases, emits `OrchestratorDirective`.
+- **SupervisorAgent (AI Engineer)**: Conversational entry point that chats with humans, enforces guardrails, and invokes specialist capabilities (e.g., DevOps) via tools.
+- **OrchestratorAgent**: Maintains `DeploymentTicket` state, routes phases, emits `OrchestratorDirective` for the DevOps capability.
 - **Architect/Naming**: Use Terraform + Microsoft Learn MCP tools plus Azure naming helper.
 - **CodingAgent**: Uses Codex 5.1 to write Terraform diffs and emits `GitOpsChangeRequest` objects; the GitOps agent is solely responsible for git activity.
 - **Plan/Security/Cost/PlanReviewer**: Manage terraform plan, Checkov/tfsec, Infracost, and review fan-in before approvals.
@@ -142,7 +167,7 @@ Each agent is a `ChatAgent` with dedicated instructions and structured output mo
 
 ### Supervisor guardrails
 
-The orchestrator acts as a supervisor that will not advance to coding or apply until you explicitly unlock those stages. Use slash commands in `/api/chat` messages (or via the Dev UI) to flip the guardrails:
+The supervisor refuses to advance to coding or apply until you explicitly unlock those stages. Use slash commands in `/api/chat` messages (or via the Dev UI / AG-UI) to flip the guardrails:
 
 - `/approve plan` unlocks the coding phase once you are happy with the proposed design/plan.
 - `/reset plan` (or `/lock coding`) re-locks coding if you want to revisit the plan.

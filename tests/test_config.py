@@ -38,3 +38,14 @@ def test_oss_model_id_override(monkeypatch):
     config.Settings.model_config["env_file"] = ()
     settings = config.Settings()
     assert settings.oss_model_id == "custom-model"
+
+
+def test_agui_toggle(monkeypatch):
+    monkeypatch.setenv("OSS_MODEL_ENDPOINT", "https://models.example.com/v1")
+    monkeypatch.setenv("CODEX_API_KEY", "codex-key")
+    monkeypatch.setenv("AGENT_FRAMEWORK_AGUI_ENABLED", "false")
+    config = importlib.import_module("app.config")
+    importlib.reload(config)
+    config.Settings.model_config["env_file"] = ()
+    settings = config.Settings()
+    assert settings.agent_framework_agui_enabled is False

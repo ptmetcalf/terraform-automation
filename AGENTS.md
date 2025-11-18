@@ -9,8 +9,17 @@ These instructions describe how to work on this repository when using an interac
   . .venv/bin/activate
   uvicorn app.main:app --reload
   ```
+- Or use the `just` scripts to streamline workflows:
+  ```bash
+  just setup   # install deps
+  just serve   # run dev server
+  just test    # run pytest
+  ```
+- The AG-UI developer console connects to the SupervisorAgent at `http://localhost:8000/agui/agentic_chat`; keep `just serve` running before `just agui`.
 - When testing the Docker image, build once with `docker build -f infra/Dockerfile -t terraform-orchestrator .` and run containers outside the agent session unless container tests are explicitly required.
 - Do **not** run destructive Terraform/GitOps commands automatically—simulate or mock them unless a human has explicitly approved the change.
+- For UI work, point the [AG-UI reference frontend](https://github.com/ag-ui-protocol/ag-ui) at the local endpoint: `AGENT_FRAMEWORK_PYTHON_URL=http://localhost:8000/agui/agentic_chat pnpm turbo run dev --filter=demo-viewer`.
+- Install `pnpm` (e.g., `corepack enable pnpm`) before running AG-UI-related commands.
 
 ## 2. Tools and Dependencies
 

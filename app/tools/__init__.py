@@ -1,6 +1,7 @@
 """Exports for built-in tools."""
 
 from .azure_naming_tool import NamingRequest, NamingSuggestion, generate_resource_name
+from .capability_router_tool import DevOpsCapabilityInput, DevOpsCapabilityResult, run_devops_capability
 from .checkov_tool import SecurityScanRequest, run_security_scan
 from .cost_tool import CostEstimateRequest, estimate_cost
 from .gitops_tool import apply_git_changes, get_gitops_repo_path, get_repo_status
@@ -22,6 +23,9 @@ __all__ = [
     "generate_resource_name",
     "SecurityScanRequest",
     "run_security_scan",
+    "DevOpsCapabilityInput",
+    "DevOpsCapabilityResult",
+    "run_devops_capability",
     "CostEstimateRequest",
     "estimate_cost",
     "get_ms_learn_mcp_tools",

@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from app.api.routes_chat import apply_supervisor_flags
+from app.services.chat_executor import apply_supervisor_flags
 from app.models import Constraints, DeploymentTicket, GitReference
 
 

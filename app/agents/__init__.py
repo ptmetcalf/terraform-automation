@@ -13,6 +13,7 @@ from .plan_agent import agent as plan_agent
 from .plan_reviewer_agent import agent as plan_reviewer_agent
 from .qa_agent import agent as qa_agent
 from .security_agent import agent as security_agent
+from .supervisor_agent import agent as supervisor_agent
 
 __all__ = [
     "apply_agent",
@@ -28,4 +29,5 @@ __all__ = [
     "plan_reviewer_agent",
     "qa_agent",
     "security_agent",
+    "supervisor_agent",
 ]

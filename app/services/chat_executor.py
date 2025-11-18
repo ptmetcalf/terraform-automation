@@ -1,0 +1,138 @@
+"""Shared chat workflow execution service."""
+from __future__ import annotations
+
+import asyncio
+from datetime import datetime, timezone
+from typing import Any
+from uuid import uuid4
+
+from app.constants import (
+    APPLY_APPROVAL_COMMANDS,
+    APPLY_AUTHORIZED_FLAG,
+    APPLY_RESET_COMMANDS,
+    PLAN_APPROVAL_COMMANDS,
+    PLAN_APPROVED_FLAG,
+    PLAN_RESET_COMMANDS,
+    SUPERVISOR_GUARDRAIL_HELP,
+)
+from app.models import Constraints, DeploymentTicket, GitReference
+from app.models.chat import ChatRequest, ChatResponse
+from app.services.ticket_store import ticket_store
+from app.workflows.terraform_workflow import workflow
+
+
+def _normalize(text: str) -> str:
+    return text.lower()
+
+
+def _matches_command(text: str, commands: tuple[str, ...]) -> bool:
+    lowered = _normalize(text)
+    return any(cmd in lowered for cmd in commands)
+
+
+def apply_supervisor_flags(ticket: DeploymentTicket, message: str) -> bool:
+    """Adjust ticket flags based on explicit slash commands from the operator."""
+
+    updated = False
+    if not message:
+        return False
+
+    if _matches_command(message, PLAN_APPROVAL_COMMANDS) and not ticket.flags.get(PLAN_APPROVED_FLAG):
+        ticket.flags[PLAN_APPROVED_FLAG] = True
+        updated = True
+    if _matches_command(message, PLAN_RESET_COMMANDS) and ticket.flags.get(PLAN_APPROVED_FLAG):
+        ticket.flags[PLAN_APPROVED_FLAG] = False
+        updated = True
+
+    if _matches_command(message, APPLY_APPROVAL_COMMANDS) and not ticket.flags.get(APPLY_AUTHORIZED_FLAG):
+        ticket.flags[APPLY_AUTHORIZED_FLAG] = True
+        updated = True
+    if _matches_command(message, APPLY_RESET_COMMANDS) and ticket.flags.get(APPLY_AUTHORIZED_FLAG):
+        ticket.flags[APPLY_AUTHORIZED_FLAG] = False
+        updated = True
+
+    return updated
+
+
+def guardrail_summary(ticket: DeploymentTicket) -> str:
+    plan_unlocked = ticket.flags.get(PLAN_APPROVED_FLAG, False)
+    apply_unlocked = ticket.flags.get(APPLY_AUTHORIZED_FLAG, False)
+    return (
+        "[Supervisor Guardrails]\n"
+        f"- coding unlocked ({PLAN_APPROVED_FLAG}): {'true' if plan_unlocked else 'false'}\n"
+        f"- apply authorized ({APPLY_AUTHORIZED_FLAG}): {'true' if apply_unlocked else 'false'}\n"
+        f"- Commands: {SUPERVISOR_GUARDRAIL_HELP}"
+    )
+
+
+class ChatService:
+    """Coordinate ticket creation and workflow execution."""
+
+    def __init__(self) -> None:
+        self._workflow_lock = asyncio.Lock()
+
+    async def _ensure_ticket(self, payload: ChatRequest) -> DeploymentTicket:
+        existing_ticket: DeploymentTicket | None = None
+        if payload.thread_id:
+            tickets = await ticket_store.list_tickets(thread_id=payload.thread_id)
+            existing_ticket = tickets[0] if tickets else None
+        if existing_ticket:
+            return existing_ticket
+
+        now = datetime.now(timezone.utc)
+        ticket = DeploymentTicket(
+            ticket_id=str(uuid4()),
+            thread_id=payload.thread_id or str(uuid4()),
+            status="draft",
+            requested_by=payload.requested_by,
+            environment=payload.environment,
+            target_cloud="azure",
+            terraform_workspace=payload.terraform_workspace,
+            git=GitReference(repo_url=payload.repo_url, branch=payload.branch),
+            intent_summary=payload.intent_summary or payload.message,
+            constraints=Constraints(),
+            current_stage="draft",
+            flags={},
+            created_at=now,
+            updated_at=now,
+        )
+        await ticket_store.upsert_ticket(ticket)
+        return ticket
+
+    async def run_chat(self, payload: ChatRequest) -> ChatResponse:
+        ticket = await self._ensure_ticket(payload)
+        apply_supervisor_flags(ticket, payload.message)
+        guardrails = guardrail_summary(ticket)
+        augmented_message = (
+            f"Ticket {ticket.ticket_id} ({ticket.environment}) request from {ticket.requested_by}:\n"
+            f"{guardrails}\n"
+            f"Operator message:\n{payload.message}"
+        )
+
+        async with self._workflow_lock:
+            result = await workflow.run(message=augmented_message)
+
+        raw_outputs = result.get_outputs()
+        outputs: list[Any] = []
+        for item in raw_outputs:
+            if hasattr(item, "model_dump"):
+                outputs.append(item.model_dump())  # type: ignore[call-arg]
+            else:
+                outputs.append(item)
+        ticket.updated_at = datetime.now(timezone.utc)
+        await ticket_store.upsert_ticket(ticket)
+
+        try:
+            final_state = result.get_final_state()
+            status = getattr(final_state, "value", str(final_state))
+        except RuntimeError:
+            status = "unknown"
+        return ChatResponse(
+            ticket_id=ticket.ticket_id,
+            thread_id=ticket.thread_id,
+            status=status,
+            workflow_outputs=outputs,
+        )
+
+
+chat_service = ChatService()

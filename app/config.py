@@ -21,6 +21,7 @@ class Settings(BaseSettings):
 
     # Agent framework
     agent_framework_devui_enabled: bool = Field(default=True, alias="AGENT_FRAMEWORK_DEVUI_ENABLED")
+    agent_framework_agui_enabled: bool = Field(default=True, alias="AGENT_FRAMEWORK_AGUI_ENABLED")
 
     # Terraform / infrastructure
     tf_cli_path: str = Field(default="terraform", alias="TF_CLI_PATH")
