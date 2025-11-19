@@ -13,6 +13,8 @@ from app import agents
 from app.api.routes_admin import router as tickets_router
 from app.api.routes_chat import router as chat_router
 from app.api.routes_capabilities import router as capabilities_router
+from app.api.routes_projects import router as projects_router
+from app.api.routes_tools import router as tools_router
 from app.config import settings
 from app.services.database import init_database, shutdown_database
 from app.services.tool_installer import ensure_tool_binaries
@@ -37,6 +39,8 @@ api_app.add_middleware(
 )
 api_app.include_router(chat_router)
 api_app.include_router(capabilities_router)
+api_app.include_router(projects_router)
+api_app.include_router(tools_router)
 api_app.include_router(tickets_router)
 
 app = FastAPI(title="Terraform Agentic Orchestrator", docs_url=None, redoc_url=None)

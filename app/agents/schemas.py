@@ -101,3 +101,11 @@ class PostApplySummary(BaseModel):
     ticket_id: str
     applied_at: datetime
     notes: str
+
+
+class SupervisorResponse(BaseModel):
+    message: str = Field(description="Conversational summary of the current state or next recommendation")
+    next_actions: list[str] = Field(default_factory=list, description="Bullet list of next actions or requests")
+    approvals_needed: list[str] = Field(
+        default_factory=list, description="List of approval commands the human should issue if required"
+    )

@@ -9,11 +9,13 @@ from pydantic import BaseModel, Field, HttpUrl
 class ChatRequest(BaseModel):
     message: str
     requested_by: str
-    environment: str = "dev"
+    environment: Optional[str] = "dev"
     thread_id: Optional[str] = None
-    terraform_workspace: str
-    repo_url: HttpUrl
-    branch: str = "main"
+    project_id: Optional[str] = Field(default=None, description="Known project identifier")
+    terraform_workspace: Optional[str] = None
+    workspace_dir: Optional[str] = None
+    repo_url: Optional[HttpUrl] = None
+    branch: Optional[str] = "main"
     intent_summary: str | None = None
 
 

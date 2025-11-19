@@ -40,7 +40,14 @@ These instructions describe how to work on this repository when using an interac
   - `IMPLEMENTATION_PLAN.md`
 - Use `AGENTS.md` solely for these agent workflow instructions. Keep specs, plans, and capability details in the dedicated docs above.
 
-## 5. Helpful Commands
+## 5. Building or Updating Agents
+
+- Follow the sub-agent specification in [`CONTRIBUTING.md`](CONTRIBUTING.md) whenever you add tools/capabilities (typed responses, HIL approvals, scoped responsibilities, tool reuse, etc.).
+- Register new capabilities in `app/capabilities/registry.py`, export their tools via `app/tools/__init__.py`, and wire them into the supervisor agent so AG‑UI can discover them.
+- Prefer `agent_framework.AIFunction` wrappers with `max_invocations` set to prevent runaway tool calls; read-only diagnostics should avoid approvals while write operations must require them.
+- Use the `/api/projects` endpoints (and `project_store`) to onboard infrastructure repos—this lets the supervisor inject repo/workspace context automatically whenever `project_id` is provided in `/api/chat` requests. For GitHub interactions, rely on the configured GitHub MCP server (list repos, inspect files, open PRs) plus the `create_project` tool to clone + register new projects. If the MCP server is not configured, fall back to the built-in `discover_repos` tool so operators can still see accessible repos via the REST API.
+
+## 6. Helpful Commands
 
 | Command | Purpose |
 | --- | --- |

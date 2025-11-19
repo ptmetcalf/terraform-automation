@@ -13,5 +13,7 @@ router = APIRouter(prefix="/api", tags=["chat"])
 async def chat_endpoint(payload: ChatRequest) -> ChatResponse:
     try:
         return await chat_service.run_chat(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover - workflow runtime errors bubble up
         raise HTTPException(status_code=500, detail=f"Workflow execution failed: {exc}") from exc

@@ -4,11 +4,11 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Dict, Literal, Optional
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import AnyUrl, BaseModel, Field
 
 
 class GitReference(BaseModel):
-    repo_url: HttpUrl
+    repo_url: AnyUrl
     branch: str
     commit: Optional[str] = None
     path: Optional[str] = None

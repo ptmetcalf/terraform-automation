@@ -2,6 +2,7 @@ __pycache__/
 *.pyc
 .venv/
 .env
+.tools/
 .DS_Store
 references/
 agent.db

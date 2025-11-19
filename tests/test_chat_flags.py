@@ -52,3 +52,18 @@ def test_apply_supervisor_flags_hold_apply():
     changed = apply_supervisor_flags(ticket, "/hold apply")
     assert changed is True
     assert ticket.flags.get("apply_authorized") is False
+
+
+def test_apply_supervisor_flags_unlocks_sre():
+    ticket = _ticket()
+    changed = apply_supervisor_flags(ticket, "/approve sre-action")
+    assert changed is True
+    assert ticket.flags.get("sre_authorized") is True
+
+
+def test_apply_supervisor_flags_lock_sre():
+    ticket = _ticket()
+    ticket.flags["sre_authorized"] = True
+    changed = apply_supervisor_flags(ticket, "/reset sre-action")
+    assert changed is True
+    assert ticket.flags.get("sre_authorized") is False

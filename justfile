@@ -18,6 +18,10 @@ test:
     # Run pytest suite
     . .venv/bin/activate && pytest -q
 
+bootstrap-tools:
+    # Download pinned Terraform/Checkov/tfsec/Infracost binaries into .tools/bin
+    ./bootstrap-tools.sh
+
 lint:
     # Placeholder for lint command
     echo "Add linting command when ready"

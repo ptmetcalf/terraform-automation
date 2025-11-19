@@ -45,9 +45,40 @@ Inspect available coworker capabilities via the REST API:
 ```
 GET /api/capabilities          # list all capabilities with metadata
 GET /api/capabilities/{slug}   # fetch a single capability definition
+GET /api/tools/health          # report MCP/REST connectivity status for slash commands
 ```
 
 The metadata is sourced from `app/capabilities/registry.py` and fuels both the supervisor workflow and future UI surfaces.
+
+## Projects API
+
+Register Terraform/Git projects so the supervisor can reuse defaults (repo URL, workspace directory, environments) without repeatedly prompting for context.
+
+```
+POST /api/projects
+{
+  "name": "Homelab Dev",
+  "description": "Azure homelab stack",
+  "repo_url": "https://github.com/acme/homelab.git",
+  "workspace_dir": "/workspaces/homelab",
+  "default_environment": "dev",
+  "default_branch": "main",
+  "project_type": "terraform"
+}
+```
+
+Use `GET /api/projects` to list entries, `PUT /api/projects/{project_id}` to update, and `DELETE /api/projects/{project_id}` to remove. When calling `/api/chat`, pass `project_id` to automatically inject this context into the supervisor’s prompt (the agent will still accept explicit workspace/repo overrides when needed).
+
+### Repository discovery & onboarding
+
+Provide a GitHub token (`GITHUB_TOKEN`) and, when available, point `GITHUB_MCP_COMMAND`/`GITHUB_MCP_ARGS` at a GitHub MCP server binary (left disabled by default). The supervisor consumes those MCP tools directly, so it can:
+
+1. Ask the GitHub MCP server for repositories the token can access (highlighting which ones are not yet onboarded). If the MCP server is not configured, the supervisor falls back to the built-in `discover_repos` REST helper so you can still list accessible repos.
+2. Use the `create_project` tool to clone a repo into `PROJECTS_ROOT` (default `./projects`) and register the new project with default branch/environment metadata. Once registered, the GitOps agent manages commits/PRs for that repo using the same MCP connection.
+
+Project types currently supported:
+- `terraform` – Terraform codebases (default).
+- `python-container` – Python app container projects (reserved for future agents).
 
 The SupervisorAgent can invoke capabilities via tools (e.g., the DevOps tool wraps the existing `/api/chat` Terraform workflow), so the same APIs remain available programmatically.
 
@@ -79,10 +110,11 @@ Environment variables are loaded via `app/config.py` using `pydantic-settings`. 
 | `AGENT_FRAMEWORK_DEVUI_ENABLED` | Toggle Dev UI mount at `/devui`. Requires `agent-framework-devui` extra. |
 | `AGENT_FRAMEWORK_AGUI_ENABLED` | Toggle AG-UI streaming endpoint at `/agui/agentic_chat`. Requires `agent-framework-ag-ui` extra. |
 | `TF_CLI_PATH`, `TF_BACKEND_*` | Terraform CLI binary and backend settings. |
-| `GIT_PROVIDER`, `GIT_USERNAME`, `GIT_TOKEN`, `GITOPS_REPO_PATH` | GitOps configuration and local path to the repo checkout. |
+| `GITOPS_REPO_PATH` | Local path to the managed GitOps checkout. |
+| `PROJECTS_ROOT` | Base directory where new projects are cloned during onboarding (default `./projects`). |
 | `DATABASE_URL` | SQLAlchemy/Databases connection string (defaults to SQLite). |
-| `TERRAFORM_MCP_COMMAND`, `TERRAFORM_MCP_ARGS` | Launch Terraform MCP server via stdio. |
 | `TERRAFORM_MCP_COMMAND`, `TERRAFORM_MCP_ARGS` | Command/args used to start the Terraform MCP server (default `npx -y terraform-mcp-server`). |
+| `GITHUB_MCP_COMMAND`, `GITHUB_MCP_ARGS`, `GITHUB_TOKEN` | (Optional) GitHub MCP stdio server configuration. Leave `GITHUB_MCP_COMMAND` empty to disable, or set it to e.g. `npx` with args for your chosen MCP implementation. |
 | `MSLEARN_MCP_URL`, `MSLEARN_MCP_KEY` | Microsoft Learn MCP streamable HTTP endpoint (default public endpoint; key optional). |
 | `TOOLS_INSTALL_DIR`, `TOOLS_AUTO_INSTALL` | Control where pinned CLI tools (Terraform, Checkov, tfsec, Infracost) are installed and whether auto-install runs on startup. |
 | `TERRAFORM_VERSION`, `TERRAFORM_DOWNLOAD_URL`, etc. | Optional overrides for the auto-installer. Provide `<TOOL>_VERSION`/`<TOOL>_DOWNLOAD_URL` for Terraform, Checkov, tfsec, or Infracost to pin to alternative releases or mirrors. |
@@ -97,6 +129,7 @@ Use the `justfile` targets to streamline common workflows:
 
    ```bash
    just setup
+   just bootstrap-tools
    ```
 
 2. Start the FastAPI server with reload:
@@ -161,7 +194,8 @@ Each agent is a `ChatAgent` with dedicated instructions and structured output mo
 - **CodingAgent**: Uses Codex 5.1 to write Terraform diffs and emits `GitOpsChangeRequest` objects; the GitOps agent is solely responsible for git activity.
 - **Plan/Security/Cost/PlanReviewer**: Manage terraform plan, Checkov/tfsec, Infracost, and review fan-in before approvals.
 - **ApplyAgent**: Handles human approval loops and Terraform apply invocations.
-- **Drift/Documentation**: Post-apply drift detection and documentation artifacts.
+- **Drift Monitor**: Provides read-only Terraform drift checks on demand (no approval required) and hands results to the documentation agent.
+- **Documentation Agent**: Compiles change summaries, runbooks, and artifacts after workflows complete.
 
 `app/workflows/terraform_workflow.py` encodes the workflow graph using `WorkflowBuilder` with conditional routing from the orchestrator to each phase, plus sequential/fan-in edges mirroring the lifecycle described in the requirements.
 
@@ -173,6 +207,7 @@ The supervisor refuses to advance to coding or apply until you explicitly unlock
 - `/reset plan` (or `/lock coding`) re-locks coding if you want to revisit the plan.
 - `/approve apply` unlocks the apply/approval phases once you are ready to run Terraform.
 - `/hold apply` (or `/reset apply` / `/lock apply`) re-locks apply so changes are never executed without explicit human consent.
+- `/approve sre-action` grants the SRE/Health responders permission to run remediation commands. `/reset sre-action` re-locks it.
 
 The supervisor summarizes the current guardrail state in every prompt so you always see which stages are permitted.
 

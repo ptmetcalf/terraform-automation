@@ -16,6 +16,7 @@ This document captures the evolving specification, architectural plan, and execu
 | Supervisor | Route work, summarize state, enforce guardrails | Workflow orchestration | Reads guardrail flags before unlocking capabilities |
 | DevOps | Terraform/Infra changes, CI/CD pipelines | Terraform CLI, GitOps tools, MCP | Requires `/approve plan` then `/approve apply` with diff + plan summary |
 | SRE | Incident response, config/runtime fixes | Monitoring APIs, runbook executors, shell tools | Requires `/approve sre-action` per remediation |
+| Drift Monitor | Read-only Terraform drift detection & health checks | Drift monitor tool, Terraform plan | No approval required (diagnostic only) |
 | AI Engineer | Model training/deployment infra | ML toolchains, artifact stores | Requires approval of training runs + deployment diffs |
 | Backend | Service code changes | Repo tooling, unit test harness | Requires approval per PR/patch |
 | Frontend | UI code changes | Repo tooling, playwright/cypress runners | Requires approval per PR/patch |

@@ -9,7 +9,7 @@ This project implements a modular “agent coworker” platform that exposes a c
    - Injects guardrail summaries (e.g., plan/apply locks) into every prompt so downstream agents know which actions are permitted.
 
 2. **Capability Agents**
-   - Pluggable agents (DevOps, SRE, AI engineer, backend, frontend, cost, health, documentation) defined under `app/agents/`.
+   - Pluggable agents (DevOps, SRE, Drift monitor, AI engineer, backend, frontend, cost, health, documentation) defined under `app/agents/`.
    - Each agent exports structured responses that capture outcomes, next steps, and whether HIL approval is required.
    - Capabilities rely on shared tools (`app/tools/`) such as Terraform wrappers, GitOps helpers, or MCP clients.
 
@@ -25,11 +25,15 @@ This project implements a modular “agent coworker” platform that exposes a c
    - SQLite-backed stores (`app/services/`) persist tickets, artifacts, locks, approvals (future), and audit logs.
    - Tool installer (`app/services/tool_installer.py`) ensures CLI dependencies (Terraform, Checkov, tfsec, Infracost) are available at runtime; the Docker image pre-installs them.
 
-6. **Capability Registry**
+6. **Project Registry**
+   - `app/services/project_store.py` plus `/api/projects` manage onboarded repositories (repo URL, workspace directory, default env/branch).
+   - The supervisor injects this context into prompts whenever a `project_id` is supplied so agents can run plans without re-collecting metadata.
+
+7. **Capability Registry**
    - `app/capabilities/registry.py` enumerates each coworker capability (slug, description, responsibilities, tools, approval commands, lifecycle status).
    - The data is exposed through `/api/capabilities` for UI surfaces and informs future workflow routing decisions.
 
-6. **UI & Dev Experience**
+8. **UI & Dev Experience**
    - `app/main.py` mounts the Dev UI (`/devui`) and AG-UI endpoints when packages are installed, enabling interactive debugging and visualization.
    - The [AG-UI reference frontend](https://github.com/ag-ui-protocol/ag-ui) connects to `/agui/agentic_chat` to render chat streams, approvals, and capability metadata without building a bespoke UI.
    - Future developer-facing UI will consume capability metadata and approval endpoints to present a coworker dashboard.

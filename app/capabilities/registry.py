@@ -71,6 +71,20 @@ def get_capabilities() -> list[Capability]:
             status=CapabilityStatus.PLANNED,
         ),
         Capability(
+            slug="drift-monitor",
+            title="Drift & Health Monitor",
+            description="Performs read-only Terraform drift checks and inspects infrastructure health without changing state.",
+            responsibilities=[
+                "Run Terraform plan in read-only mode to detect drift",
+                "Report untracked resources or configuration changes",
+                "Surface recommendations for remediation without applying changes",
+            ],
+            tools=["Terraform drift monitor", "Cloud inventory queries"],
+            approval_required=False,
+            approval_commands=[],
+            status=CapabilityStatus.AVAILABLE,
+        ),
+        Capability(
             slug="ai-engineer",
             title="AI / ML Engineer",
             description="Builds and deploys model workflows, tracks experiments, and manages inference infra.",

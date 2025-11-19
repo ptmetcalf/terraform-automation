@@ -17,3 +17,5 @@ opentelemetry-exporter-otlp>=1.23.0
 tenacity>=8.2.3
 typing-extensions>=4.10.0
 langfuse>=2.0.0
+pytest>=8.0.0
+pytest-asyncio>=0.23.0

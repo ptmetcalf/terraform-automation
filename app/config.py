@@ -30,10 +30,10 @@ class Settings(BaseSettings):
     tf_backend_container: Optional[str] = Field(default=None, alias="TF_BACKEND_CONTAINER")
 
     # Git
-    git_provider: str = Field(default="github", alias="GIT_PROVIDER")
-    git_token: Optional[str] = Field(default=None, alias="GIT_TOKEN")
-    git_username: Optional[str] = Field(default=None, alias="GIT_USERNAME")
     gitops_repo_path: str = Field(default="./gitops", alias="GITOPS_REPO_PATH")
+
+    # Projects / onboarding
+    projects_root: str = Field(default="./projects", alias="PROJECTS_ROOT")
 
     # Misc env
     database_url: str = Field(default="sqlite+aiosqlite:///./agent.db", alias="DATABASE_URL")
