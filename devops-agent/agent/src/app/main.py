@@ -3,13 +3,15 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, List
+from contextlib import asynccontextmanager
+from typing import Any, List, AsyncIterator
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 
 from app import agents
+from app.agui.workflow_agent import WorkflowChatAgent
 from app.api.routes_admin import router as tickets_router
 from app.api.routes_chat import router as chat_router
 from app.api.routes_capabilities import router as capabilities_router
@@ -43,10 +45,25 @@ api_app.include_router(projects_router)
 api_app.include_router(tools_router)
 api_app.include_router(tickets_router)
 
-app = FastAPI(title="Terraform Agentic Orchestrator", docs_url=None, redoc_url=None)
-app.mount("/api", api_app)
-
 devui_app = None
+
+
+@asynccontextmanager
+async def _lifespan(_: FastAPI) -> AsyncIterator[None]:
+    """Manage application startup/shutdown without deprecated on_event hooks."""
+    logger.info("Starting application bootstrap")
+    if settings.tools_auto_install:
+        await asyncio.to_thread(ensure_tool_binaries)
+    await init_database()
+    _register_devui(app)
+    try:
+        yield
+    finally:
+        await shutdown_database()
+
+
+app = FastAPI(title="Terraform Agentic Orchestrator", docs_url=None, redoc_url=None, lifespan=_lifespan)
+app.mount("/api", api_app)
 
 def _register_devui(app: FastAPI) -> None:
     global devui_app
@@ -100,25 +117,16 @@ def _register_agui(app: FastAPI) -> None:
         logger.warning("agent-framework-ag-ui package not installed; skipping AG-UI endpoint")
         return
 
-    logger.info("Registering AG-UI endpoint on /agui/agentic_chat")
-    add_agent_framework_fastapi_endpoint(app, agents.supervisor_agent, path="/agui/agentic_chat")
+    logger.info("Registering AG-UI endpoint on /agui/agentic_chat (workflow-backed)")
+    workflow_agent = WorkflowChatAgent()
+    add_agent_framework_fastapi_endpoint(
+        app,
+        agent=workflow_agent,
+        path="/agui/agentic_chat",
+    )
     logger.info("Registered AG-UI endpoint at /agui/agentic_chat")
 
 _register_agui(app)
-
-
-@app.on_event("startup")
-async def on_startup() -> None:
-    logger.info("Starting application bootstrap")
-    if settings.tools_auto_install:
-        await asyncio.to_thread(ensure_tool_binaries)
-    await init_database()
-    _register_devui(app)
-
-
-@app.on_event("shutdown")
-async def on_shutdown() -> None:
-    await shutdown_database()
 
 
 @app.get("/devui")

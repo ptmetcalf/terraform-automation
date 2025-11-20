@@ -1,8 +1,9 @@
 from fastapi.testclient import TestClient
 
-from app.api.routes_capabilities import router as capabilities_router
 from app.capabilities import get_capabilities, get_capability
-from app.main import api_app
+from app.main import app
+
+client = TestClient(app)
 
 
 def test_capability_registry_contains_supervisor():
@@ -18,7 +19,6 @@ def test_get_capability_by_slug():
 
 
 def test_capabilities_api_list(monkeypatch):
-    client = TestClient(api_app)
     response = client.get("/api/capabilities")
     assert response.status_code == 200
     payload = response.json()
@@ -27,7 +27,6 @@ def test_capabilities_api_list(monkeypatch):
 
 
 def test_capabilities_api_detail():
-    client = TestClient(api_app)
     response = client.get("/api/capabilities/supervisor")
     assert response.status_code == 200
     data = response.json()
@@ -35,6 +34,5 @@ def test_capabilities_api_detail():
 
 
 def test_capabilities_api_not_found():
-    client = TestClient(api_app)
     response = client.get("/api/capabilities/unknown")
     assert response.status_code == 404

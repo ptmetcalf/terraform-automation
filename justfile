@@ -6,17 +6,20 @@ default:
     @just --list
 
 setup:
-    # Create venv and install dependencies
-    python -m venv .venv
-    . .venv/bin/activate && pip install -r requirements.txt
+    # Install UI deps (runs agent setup via npm postinstall)
+    cd devops-agent && npm install
 
 serve:
     # Start FastAPI dev server with reload
-    . .venv/bin/activate && uvicorn app.main:app --reload
+    cd devops-agent/agent && uv run src/main.py
 
 test:
     # Run pytest suite
-    . .venv/bin/activate && pytest -q
+    cd devops-agent/agent && uv run --group dev pytest -q
+
+fullstack:
+    # Run Next.js UI + FastAPI agent together
+    cd devops-agent && npm run dev
 
 bootstrap-tools:
     # Download pinned Terraform/Checkov/tfsec/Infracost binaries into .tools/bin
@@ -30,10 +33,5 @@ docker-build:
     docker build -t terraform-orchestrator -f infra/Dockerfile .
 
 docker-run:
-    docker run --rm --env-file .env -p 8000:8000 \
+    docker run --rm --env-file devops-agent/agent/.env -p 8000:8000 \
         -v "$${PWD}:/app" terraform-orchestrator
-
-agui:
-    # Launch AG-UI dojo (assumes repo cloned at ../ag-ui)
-    command -v pnpm >/dev/null || { echo "pnpm is required. Install via 'corepack enable'."; exit 1; }
-    cd ../ag-ui && AGENT_FRAMEWORK_PYTHON_URL=http://localhost:8000/agui pnpm turbo run dev --filter=demo-viewer

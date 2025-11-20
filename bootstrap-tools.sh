@@ -18,8 +18,9 @@ else
 fi
 
 export TOOLS_INSTALL_DIR="${TOOLS_INSTALL_DIR:-${ROOT_DIR}/.tools/bin}"
+export PYTHONPATH="${ROOT_DIR}/devops-agent/agent/src:${PYTHONPATH:-}"
 
-cd "${ROOT_DIR}"
+cd "${ROOT_DIR}/devops-agent/agent"
 
 "${PYTHON_CMD}" - <<'PY'
 from app.services.tool_installer import ensure_tool_binaries

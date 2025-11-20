@@ -1,0 +1,32 @@
+Metadata-Version: 2.4
+Name: terraform-agentic-orchestrator
+Version: 0.1.0
+Summary: Agent Framework powered Terraform automation orchestrator
+Requires-Python: >=3.12
+Description-Content-Type: text/markdown
+Requires-Dist: agent-framework-core>=0.1.0
+Requires-Dist: agent-framework-devui>=0.1.0
+Requires-Dist: agent-framework-ag-ui>=0.1.0
+Requires-Dist: azure-identity>=1.16.0
+Requires-Dist: fastapi>=0.111.0
+Requires-Dist: gitpython>=3.1.40
+Requires-Dist: httpx>=0.27.0
+Requires-Dist: langfuse>=2.0.0
+Requires-Dist: opentelemetry-exporter-otlp>=1.23.0
+Requires-Dist: opentelemetry-sdk>=1.23.0
+Requires-Dist: pydantic>=2.6
+Requires-Dist: pydantic-settings>=2.2
+Requires-Dist: python-dotenv>=1.0
+Requires-Dist: sqlalchemy>=2.0.25
+Requires-Dist: tenacity>=8.2.3
+Requires-Dist: typing-extensions>=4.10.0
+Requires-Dist: uvicorn[standard]>=0.27.0
+Requires-Dist: databases[sqlite]>=0.9.0
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0.0; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.23.0; extra == "dev"
+Requires-Dist: httpx[http2]>=0.27.0; extra == "dev"
+
+# Terraform Agent Backend
+
+This directory houses the FastAPI/Microsoft Agent Framework backend for the Terraform Agentic Orchestrator. Refer to the repository-level README.md for architecture details; this file exists so packaging tools can read a local long description.

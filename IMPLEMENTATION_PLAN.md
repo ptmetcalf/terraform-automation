@@ -26,7 +26,7 @@ This document captures the evolving specification, architectural plan, and execu
 ## Implementation Plan
 
 1. **Capability Registry**
-   - Create `app/capabilities/registry.py` describing each capability (instructions, tools, schema, approval policy).
+   - Create `devops-agent/agent/src/app/capabilities/registry.py` describing each capability (instructions, tools, schema, approval policy).
    - Surface metadata through an `/api/capabilities` endpoint for UI discovery.
 
 2. **Workflow Refactor**
@@ -34,7 +34,7 @@ This document captures the evolving specification, architectural plan, and execu
    - Introduce `CapabilityDirective` / `CapabilityResponse` schemas plus shared approval metadata.
 
 3. **Approval Service**
-   - Expand `app/models/approval.py`, add `app/services/approval_store.py`, and expose `/api/approvals` endpoints.
+   - Expand `devops-agent/agent/src/app/models/approval.py`, add `devops-agent/agent/src/app/services/approval_store.py`, and expose `/api/approvals` endpoints.
    - Integrate capability-specific `/approve <capability>` guardrails.
 
 4. **UI Enablement**
@@ -56,6 +56,32 @@ This document captures the evolving specification, architectural plan, and execu
 - Build approval endpoints and extend chat commands for capability-specific approvals.
 - Draft UI wireframes for the developer chat/approval interface.
 
+## Near-Term Delivery: Ticket Console UI Integration
+
+To make the combined CopilotKit + FastAPI workspace useful beyond the stock demo, we will surface real deployment tickets inside the Next.js frontend and keep the experience aligned with the backend APIs. Deliverable scope:
+
+1. Fetch real ticket data via `/api/tickets`.
+2. Render that data with a refresh affordance so operators can monitor workflows without leaving the UI.
+3. Document the new configuration knobs so other developers can run the experience without guesswork.
+
+### Task Breakdown
+
+- [x] **UI API helper**
+  - Create `devops-agent/src/lib/api.ts` exporting a `getApiBaseUrl()` helper (reads `NEXT_PUBLIC_API_BASE_URL` with `http://localhost:8000` fallback) and a typed `fetchJson<T>(path: string)` that handles errors/logging.
+- [x] **Tickets panel**
+  - Add `TicketsPanel` component that:
+    - Calls `fetchJson` to load `/api/tickets`.
+    - Shows loading/error states, ticket metadata (id, status, requested_by, updated_at), and a refresh button.
+    - Highlights the active ticket count to mirror backend activity.
+- [x] **Page integration**
+  - Replace the placeholder Proverbs UI with a layout that renders `TicketsPanel` (keeping the Copilot sidebar + theme control for now).
+  - Ensure Copilot shared state no longer references the removed proverbs card to avoid confusing UX.
+- [x] **Documentation updates**
+  - README: document the new UI behavior and `NEXT_PUBLIC_API_BASE_URL` usage.
+  - AGENTS.md: mention `just fullstack` now serves a ticket dashboard rather than the stock CopilotKit demo (so expectations are clear).
+- [x] **Testing & validation**
+  - Run `just test` (backend) and `npm run lint` (frontend) to ensure no regressions.
+
 ## Documentation Requirements
 
 - **ARCHITECTURE.md**: system design and evolution path. Update whenever workflows, orchestration, approvals, or infrastructure tooling change.
@@ -67,13 +93,13 @@ No pull request is complete until these documents reflect the current behavior.
 ## Execution Checklist
 
 ### Phase 1 – Foundations
-- [x] Define capability data model and implement `app/capabilities/registry.py`.
+- [x] Define capability data model and implement `devops-agent/agent/src/app/capabilities/registry.py`.
 - [x] Add `/api/capabilities` endpoint exposing registry metadata.
 - [x] Update docs (Architecture + README) to describe the registry and API.
 
 ### Phase 2 – Workflow Refactor
 - [ ] Design `CapabilityDirective` / `CapabilityResponse` schemas.
-- [ ] Refactor `app/workflows/terraform_workflow.py` into a capability router (DevOps as first capability).
+- [ ] Refactor `devops-agent/agent/src/app/workflows/terraform_workflow.py` into a capability router (DevOps as first capability).
 - [x] Align supervisor instructions with the new routing logic (AG-UI now talks to the SupervisorAgent which can trigger the DevOps capability via tools).
 
 ### Phase 3 – Approval Service & Guardrails

@@ -48,7 +48,13 @@ INSTRUCTIONS = dedent(
 
 
 _GITHUB_TOOLS = get_github_mcp_tools()
-_TOOLS = [devops_capability_tool, drift_monitor_tool, project_onboarding_tool, *(_GITHUB_TOOLS or [repo_discovery_tool])]
+_TOOLS = [
+    devops_capability_tool,
+    drift_monitor_tool,
+    project_onboarding_tool,
+    *(_GITHUB_TOOLS or []),
+    repo_discovery_tool,
+]
 
 
 def create_agent():

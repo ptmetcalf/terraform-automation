@@ -2,11 +2,11 @@ import asyncio
 
 from fastapi.testclient import TestClient
 
-from app.main import api_app
+from app.main import app
 from app.services.database import database, projects_table
 
 
-client = TestClient(api_app)
+client = TestClient(app)
 
 
 def _clear_projects():

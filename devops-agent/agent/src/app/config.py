@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     # Agent framework
     agent_framework_devui_enabled: bool = Field(default=True, alias="AGENT_FRAMEWORK_DEVUI_ENABLED")
     agent_framework_agui_enabled: bool = Field(default=True, alias="AGENT_FRAMEWORK_AGUI_ENABLED")
+    agui_requested_by: str = Field(default="agui-user", alias="AGUI_REQUESTED_BY")
 
     # Terraform / infrastructure
     tf_cli_path: str = Field(default="terraform", alias="TF_CLI_PATH")
@@ -31,6 +32,12 @@ class Settings(BaseSettings):
 
     # Git
     gitops_repo_path: str = Field(default="./gitops", alias="GITOPS_REPO_PATH")
+    default_project_id: Optional[str] = Field(default=None, alias="DEFAULT_PROJECT_ID")
+    default_repo_url: Optional[AnyHttpUrl] = Field(default=None, alias="DEFAULT_REPO_URL")
+    default_workspace_dir: Optional[str] = Field(default=None, alias="DEFAULT_WORKSPACE_DIR")
+    default_terraform_workspace: Optional[str] = Field(default=None, alias="DEFAULT_TERRAFORM_WORKSPACE")
+    default_branch: str = Field(default="main", alias="DEFAULT_BRANCH")
+    default_environment: str = Field(default="dev", alias="DEFAULT_ENVIRONMENT")
 
     # Projects / onboarding
     projects_root: str = Field(default="./projects", alias="PROJECTS_ROOT")

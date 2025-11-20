@@ -10,7 +10,7 @@ from app.models import DeploymentTicket
 from app.services.artifact_store import artifact_store
 from app.services.ticket_store import ticket_store
 
-router = APIRouter(prefix="/api/tickets", tags=["tickets"])
+router = APIRouter(prefix="/tickets", tags=["tickets"])
 
 
 class TicketDetail(BaseModel):

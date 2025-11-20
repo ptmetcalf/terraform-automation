@@ -8,26 +8,24 @@ Agent Framework-powered multi-agent system that manages Terraform infrastructure
 - **Model routing** between an OSS OpenAI-compatible endpoint for logic/review agents and Codex 5.1 for coding.
 - **Tools & services** for Terraform CLI, Checkov/tfsec, Infracost, MCP (Terraform + Microsoft Learn), GitOps enforcement, workspace locks, and ticket/audit persistence using SQLite.
 - **FastAPI** server with `/api/chat` and `/api/tickets/*` APIs plus optional Dev UI mount at `/devui` when `agent-framework-devui` is installed and enabled.
+- **CopilotKit dashboard** served from `devops-agent/src/app/page.tsx` that lists real deployment tickets by calling `/api/tickets`, so you can watch workflows progress without leaving the UI.
 - **Containerization** via `infra/Dockerfile` and `infra/docker-compose.dev.yml` for Podman/Docker workflows.
 
 ## Project Layout
 
 ```
 terraform-automation/
-├── app/
-│   ├── api/                # REST endpoints
-│   ├── agents/             # Agent definitions + schemas
-│   ├── models/             # Pydantic domain models
-│   ├── services/           # Persistence, locks, audit, model router
-│   ├── tools/              # Terraform/Checkov/Cost/GitOps/MCP helpers
-│   ├── workflows/          # Terraform workflow graph definition
-│   ├── config.py           # Settings via environment variables
-│   └── main.py             # FastAPI entrypoint + Dev UI mount
+├── devops-agent/
+│   ├── agent/              # FastAPI backend (uv project w/ src/app + tests)
+│   ├── scripts/            # Helper scripts for uv + npm workflows
+│   ├── src/                # Next.js AG-UI reference frontend
+│   └── package.json        # Combined dev orchestrator (npm run dev)
 ├── infra/
 │   ├── Dockerfile
 │   └── docker-compose.dev.yml
-├── tests/
-├── pyproject.toml / requirements.txt
+├── docs/
+├── references/
+├── requirements.txt / pyproject.toml   # Kept for container + tooling installs
 └── README.md
 ```
 
@@ -48,7 +46,7 @@ GET /api/capabilities/{slug}   # fetch a single capability definition
 GET /api/tools/health          # report MCP/REST connectivity status for slash commands
 ```
 
-The metadata is sourced from `app/capabilities/registry.py` and fuels both the supervisor workflow and future UI surfaces.
+The metadata is sourced from `devops-agent/agent/src/app/capabilities/registry.py` and fuels both the supervisor workflow and future UI surfaces.
 
 ## Projects API
 
@@ -84,9 +82,9 @@ The SupervisorAgent can invoke capabilities via tools (e.g., the DevOps tool wra
 
 ## AG-UI Developer Console
 
-The API exposes an AG-UI-compatible streaming endpoint at `/agui/agentic_chat` (mounted when `agent-framework-ag-ui` is installed and `AGENT_FRAMEWORK_AGUI_ENABLED=true`). It connects directly to the SupervisorAgent (AI Engineer) so you can chat with the coworker while it orchestrates sub-capabilities. Use the [AG-UI reference frontend](https://github.com/ag-ui-protocol/ag-ui) to visualize conversations, approvals, and capability state:
+The API exposes an AG-UI-compatible streaming endpoint at `/agui/agentic_chat` (mounted when `agent-framework-ag-ui` is installed and `AGENT_FRAMEWORK_AGUI_ENABLED=true`). This endpoint now proxies every request through the Terraform workflow (`/api/chat`), so conversations initiated from AG-UI or the bundled CopilotKit UI automatically create/update tickets, honor guardrails, and show up in Dev UI traces. Use the [AG-UI reference frontend](https://github.com/ag-ui-protocol/ag-ui) to visualize conversations, approvals, and capability state:
 
-1. Start this API locally: `uvicorn app.main:app --reload`.
+1. Start the FastAPI agent locally (either `cd devops-agent/agent && uv run src/main.py` or `just serve`). Running `cd devops-agent && npm run dev` starts both the UI and agent if you want the CopilotKit frontend alongside the API.
 2. Clone and set up AG-UI (requires `pnpm`; install via `corepack enable pnpm` if needed):
    ```bash
    git clone https://github.com/ag-ui-protocol/ag-ui
@@ -97,11 +95,11 @@ The API exposes an AG-UI-compatible streaming endpoint at `/agui/agentic_chat` (
    ```bash
    AGENT_FRAMEWORK_PYTHON_URL=http://localhost:8000/agui/agentic_chat pnpm turbo run dev --filter=demo-viewer
    ```
-4. Open `http://localhost:3000` to interact with the coworker UI. The new `/api/capabilities` metadata and approval commands can be surfaced in AG-UI panels for richer context.
+4. Open `http://localhost:3000` to interact with the coworker UI. Configure `DEFAULT_PROJECT_ID` (or the repo/workspace defaults) so the workflow has enough context to execute plans from this UI, and use the Dev UI to inspect the resulting traces.
 
 ## Configuration
 
-Environment variables are loaded via `app/config.py` using `pydantic-settings`. Key values:
+Environment variables are loaded via `devops-agent/agent/src/app/config.py` using `pydantic-settings`. Key values:
 
 | Variable | Description |
 | --- | --- |
@@ -109,34 +107,44 @@ Environment variables are loaded via `app/config.py` using `pydantic-settings`. 
 | `CODEX_API_KEY` / `OPENAI_API_KEY`, `CODEX_ENDPOINT`, `CODEX_MODEL_ID` | Codex 5.1 coding agent credentials. |
 | `AGENT_FRAMEWORK_DEVUI_ENABLED` | Toggle Dev UI mount at `/devui`. Requires `agent-framework-devui` extra. |
 | `AGENT_FRAMEWORK_AGUI_ENABLED` | Toggle AG-UI streaming endpoint at `/agui/agentic_chat`. Requires `agent-framework-ag-ui` extra. |
+| `AGUI_REQUESTED_BY` | Name recorded in tickets for AG-UI/CopilotKit sessions (default `agui-user`). |
+| `DEFAULT_PROJECT_ID` | Optional project ID to auto-load repo/workspace context for AG-UI chats. |
+| `DEFAULT_REPO_URL`, `DEFAULT_TERRAFORM_WORKSPACE`, `DEFAULT_WORKSPACE_DIR` | Required if no default project is configured; used to populate `/api/chat` payloads triggered from AG-UI. |
+| `DEFAULT_BRANCH`, `DEFAULT_ENVIRONMENT` | Defaults applied to AG-UI sessions (when project metadata is absent). |
+| `AGENT_FRAMEWORK_PYTHON_URL` / `NEXT_PUBLIC_AGENT_FRAMEWORK_URL` | Override for the AG-UI streaming endpoint the CopilotKit runtime calls (default `http://localhost:8000/agui/agentic_chat`). |
 | `TF_CLI_PATH`, `TF_BACKEND_*` | Terraform CLI binary and backend settings. |
 | `GITOPS_REPO_PATH` | Local path to the managed GitOps checkout. |
 | `PROJECTS_ROOT` | Base directory where new projects are cloned during onboarding (default `./projects`). |
 | `DATABASE_URL` | SQLAlchemy/Databases connection string (defaults to SQLite). |
+| `NEXT_PUBLIC_API_BASE_URL` | (Frontend) Override for the API origin the ticket console calls (default `http://localhost:8000`). |
 | `TERRAFORM_MCP_COMMAND`, `TERRAFORM_MCP_ARGS` | Command/args used to start the Terraform MCP server (default `npx -y terraform-mcp-server`). |
 | `GITHUB_MCP_COMMAND`, `GITHUB_MCP_ARGS`, `GITHUB_TOKEN` | (Optional) GitHub MCP stdio server configuration. Leave `GITHUB_MCP_COMMAND` empty to disable, or set it to e.g. `npx` with args for your chosen MCP implementation. |
 | `MSLEARN_MCP_URL`, `MSLEARN_MCP_KEY` | Microsoft Learn MCP streamable HTTP endpoint (default public endpoint; key optional). |
 | `TOOLS_INSTALL_DIR`, `TOOLS_AUTO_INSTALL` | Control where pinned CLI tools (Terraform, Checkov, tfsec, Infracost) are installed and whether auto-install runs on startup. |
 | `TERRAFORM_VERSION`, `TERRAFORM_DOWNLOAD_URL`, etc. | Optional overrides for the auto-installer. Provide `<TOOL>_VERSION`/`<TOOL>_DOWNLOAD_URL` for Terraform, Checkov, tfsec, or Infracost to pin to alternative releases or mirrors. |
 
-Create a `.env` file with these variables when running locally.
+Create a `devops-agent/agent/.env` file with these variables when running locally.
 
 ## Running Locally
 
 Use the `justfile` targets to streamline common workflows:
 
-1. Install dependencies:
+1. Install dependencies (installs npm packages plus the uv environment) and optionally download CLI tools:
 
    ```bash
    just setup
-   just bootstrap-tools
+   just bootstrap-tools   # optional, installs Terraform/Checkov/tfsec/Infracost
    ```
 
-2. Start the FastAPI server with reload:
+2. Start the backend (or the full stack) with reload:
 
    ```bash
-   just serve
+   just serve                     # FastAPI only (uv run src/main.py)
+   just fullstack                 # Wrapper around npm run dev (UI + API)
+   cd devops-agent && npm run dev # Next.js + FastAPI via scripts/run-agent.sh
    ```
+
+   Visiting `http://localhost:3000` now opens the CopilotKit dashboard with the live ticket console. Set `NEXT_PUBLIC_API_BASE_URL` if your FastAPI backend runs on a different host/port.
 
 3. Run tests:
 
@@ -156,11 +164,13 @@ Use the `justfile` targets to streamline common workflows:
    http :8000/api/tickets/{ticket_id}
    ```
 
-6. If `AGENT_FRAMEWORK_DEVUI_ENABLED=true` and the Dev UI extra is installed, open `http://localhost:8000/devui` for the debugging UI. To run the AG-UI frontend, use `just agui` (after cloning the AG-UI repo adjacent to this project).
+6. If `AGENT_FRAMEWORK_DEVUI_ENABLED=true` and the Dev UI extra is installed, open `http://localhost:8000/devui` for the debugging UI. To run the AG-UI frontend, follow the `devops-agent/README.md` instructions for the bundled CopilotKit UI or the upstream AG-UI project.
+
+7. For AG-UI/CopilotKit sessions, configure either `DEFAULT_PROJECT_ID` (pointing at a registered project) or provide `DEFAULT_REPO_URL` + `DEFAULT_TERRAFORM_WORKSPACE` (+ optional `DEFAULT_WORKSPACE_DIR`). Without these values the workflow endpoint cannot provision context for chat requests coming from the UI.
 
 ### Tool installation
 
-On startup the app downloads pinned versions of Terraform (1.9.5), Checkov (3.2.332), tfsec (1.28.3), and Infracost (0.10.42) into `TOOLS_INSTALL_DIR` (default `.tools/bin`). The directory is added to `PATH`, so you can rely on those binaries both locally and inside containers without baking them into the base image. Set `TOOLS_AUTO_INSTALL=false` or pre-populate the directory to skip downloads.
+On startup the app downloads pinned versions of Terraform (1.9.5), Checkov (3.2.332), tfsec (1.28.3), and Infracost (0.10.42) into `TOOLS_INSTALL_DIR` (defaults to `devops-agent/agent/.tools/bin`). The directory is added to `PATH`, so you can rely on those binaries both locally and inside containers without baking them into the base image. Set `TOOLS_AUTO_INSTALL=false` or pre-populate the directory to skip downloads.
 
 ### Docker / Podman
 
@@ -170,7 +180,7 @@ Build and run locally:
 
 ```bash
 docker build -t terraform-orchestrator -f infra/Dockerfile .
-docker run --env-file .env -p 8000:8000 \
+docker run --env-file devops-agent/agent/.env -p 8000:8000 \
   -v /home/batman/code/homelab-monorepo/terraform/azure:/workspace \
   -e GITOPS_REPO_PATH=/workspace \
   terraform-orchestrator
@@ -186,7 +196,7 @@ The compose stack mounts the repository for iterative development.
 
 ## Agents & Workflows
 
-Each agent is a `ChatAgent` with dedicated instructions and structured output models defined in `app/agents/schemas.py`. Highlights:
+Each agent is a `ChatAgent` with dedicated instructions and structured output models defined in `devops-agent/agent/src/app/agents/schemas.py`. Highlights:
 
 - **SupervisorAgent (AI Engineer)**: Conversational entry point that chats with humans, enforces guardrails, and invokes specialist capabilities (e.g., DevOps) via tools.
 - **OrchestratorAgent**: Maintains `DeploymentTicket` state, routes phases, emits `OrchestratorDirective` for the DevOps capability.
@@ -197,7 +207,7 @@ Each agent is a `ChatAgent` with dedicated instructions and structured output mo
 - **Drift Monitor**: Provides read-only Terraform drift checks on demand (no approval required) and hands results to the documentation agent.
 - **Documentation Agent**: Compiles change summaries, runbooks, and artifacts after workflows complete.
 
-`app/workflows/terraform_workflow.py` encodes the workflow graph using `WorkflowBuilder` with conditional routing from the orchestrator to each phase, plus sequential/fan-in edges mirroring the lifecycle described in the requirements.
+`devops-agent/agent/src/app/workflows/terraform_workflow.py` encodes the workflow graph using `WorkflowBuilder` with conditional routing from the orchestrator to each phase, plus sequential/fan-in edges mirroring the lifecycle described in the requirements.
 
 ### Supervisor guardrails
 
@@ -213,24 +223,24 @@ The supervisor summarizes the current guardrail state in every prompt so you alw
 
 ## Persistence & Services
 
-- `services/database.py` defines shared metadata/tables and async connection helpers (SQLite by default).
+- `devops-agent/agent/src/app/services/database.py` defines shared metadata/tables and async connection helpers (SQLite by default).
 - `TicketStore`, `ArtifactStore`, `LockManager`, `AuditLogService` interact with this database.
 - `ModelRouter` centralizes creation of `OpenAIChatClient` instances for logic vs coding models.
 
 ## Tools
 
-- `tools/terraform_cli_tool.py`: Pydantic requests + wrappers around `terraform init/plan/show/apply` plus drift detection.
-- `tools/checkov_tool.py`, `tools/cost_tool.py`, `tools/gitops_tool.py`, and `tools/azure_naming_tool.py` expose structured functions for agents to call.
-- `tools/mcp_clients.py` provisions Terraform + Microsoft Learn MCP tool instances.
-- `tools/terraform_rules_tool.py` exposes the living Terraform module standards (`docs/terraform-standards.md`) so agents consistently reuse and maintain modules.
+- `devops-agent/agent/src/app/tools/terraform_cli_tool.py`: Pydantic requests + wrappers around `terraform init/plan/show/apply` plus drift detection.
+- Additional helpers live under `devops-agent/agent/src/app/tools/` (`checkov_tool.py`, `cost_tool.py`, `gitops_tool.py`, `azure_naming_tool.py`) and expose structured functions for agents to call.
+- `devops-agent/agent/src/app/tools/mcp_clients.py` provisions Terraform + Microsoft Learn MCP tool instances.
+- `devops-agent/agent/src/app/tools/terraform_rules_tool.py` exposes the living Terraform module standards (`docs/terraform-standards.md`) so agents consistently reuse and maintain modules.
 
 ## Testing
 
-`tests/` is ready for unit/integration coverage (e.g., mocking Terraform/Checkov binaries and validating agent/tool glue). Add `pytest`-based suites to exercise agent schemas, tool behaviors, and workflow happy paths with fake stores.
+`devops-agent/agent/tests/` is ready for unit/integration coverage (e.g., mocking Terraform/Checkov binaries and validating agent/tool glue). Add `pytest`-based suites to exercise agent schemas, tool behaviors, and workflow happy paths with fake stores.
 
 ## Development Notes
 
-- Requires Python 3.11+.
+- Requires Python 3.12+ (uv-managed environment lives under `devops-agent/agent`).
 - GitOps functions rely on clean working trees; ensure repositories are cloned locally or inside the container before invoking GitOps operations.
 - Terraform/Checkov/Infracost binaries are optional at startup but required for real plan/apply/cost flows.
 - Dev UI and AG-UI extras are optional; install `agent-framework-devui` and `agent-framework-ag-ui` to enable those integrations.

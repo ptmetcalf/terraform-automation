@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, status
 from app.models.project import Project, ProjectCreate, ProjectList, ProjectUpdate
 from app.services import project_store
 
-router = APIRouter(prefix="/api/projects", tags=["projects"])
+router = APIRouter(prefix="/projects", tags=["projects"])
 
 
 @router.get("/", response_model=ProjectList)
@@ -42,4 +42,3 @@ async def delete_project(project_id: str) -> None:
     if project is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
     await project_store.delete_project(project_id)
-

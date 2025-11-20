@@ -21,11 +21,14 @@ COPY requirements.txt pyproject.toml /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY bootstrap-tools.sh /app/bootstrap-tools.sh
-COPY app /app/app
+COPY devops-agent /app/devops-agent
 COPY docs /app/docs
 COPY infra /app/infra
 
 RUN chmod +x /app/bootstrap-tools.sh && /app/bootstrap-tools.sh
+
+ENV PYTHONPATH="/app/devops-agent/agent/src:${PYTHONPATH}"
+WORKDIR /app/devops-agent/agent
 
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
